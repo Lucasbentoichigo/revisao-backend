@@ -24,43 +24,33 @@ export const create = async (req, res) => {
             });
         }
 
-        const { name, description, category, price, available } = req.body;
+        const { name, description, price, category, available } = req.body;
 
-        if (!name) {
-            return res.status(400).json({ error: 'O campo name é obrigatório!' });
-        }
-        if (!category) {
-            return res.status(400).json({ error: 'O campo category é obrigatório!' });
-        }
-        if (!description) {
-            return res.status(400).json({ error: 'O campo description é obrigatório!' });
-        }
+        if (!name) return res.status(400).json({ error: 'O nome (name) é obrigatório!' });
+        if (!description)
+            return res.status(400).json({ error: 'A descrição (description) é obrigatória!' });
+        if (!price) return res.status(400).json({ error: 'O preço (price) é obrigatório!' });
+        if (!category)
+            return res.status(400).json({ error: 'A categoria (category) é obrigatória!' });
 
-        if (price === undefined) {
-            return res.status(400).json({ error: 'O campo price é obrigatório!' });
+        const priceNum = parseFloat(price);
+        if (isNaN(priceNum) || priceNum <= 0) {
+            return res.status(400).json({ error: 'O preço deve ser um número positivo!' });
         }
 
-        if (price < 0) {
-            return res.status(400).json({ error: 'O campo price deve ser positivo!' });
-        }
-
-        const categorias_validas = ['Sobremesa', 'Lanche', 'Pizza', 'Prato Principal', 'Salada'];
-
-        if (category) {
-            if (!categorias_validas.includes(category)) {
-                return res.status(400).json({
-                    success: false,
-                    message: `A raça "${category}" não é válida. Raças permitidas: ${categorias_validas.join(', ')}.`,
-                });
-            }
+        const validCategories = ['entrada', 'prato principal', 'sobremesa', 'bebida'];
+        if (!validCategories.includes(category.toLowerCase())) {
+            return res.status(400).json({
+                error: `Categoria inválida! Use: ${validCategories.join(', ')}`,
+            });
         }
 
         const data = await model.create({
             name,
             description,
-            category,
-            price: parseFloat(price),
-            available: available === 'true' || available === true,
+            price: priceNum,
+            category: category.toLowerCase(),
+            available: available !== undefined ? available : true,
         });
 
         res.status(201).json({
@@ -69,9 +59,7 @@ export const create = async (req, res) => {
         });
     } catch (error) {
         console.error('Erro ao criar:', error);
-        res.status(500).json({
-            error: 'Erro interno no servidor ao salvar o registro.',
-        });
+        res.status(500).json({ error: 'Erro interno no servidor ao salvar o registro.' });
     }
 };
 
@@ -104,41 +92,14 @@ export const update = async (req, res) => {
             });
         }
 
-        if (isNaN(id)) {
-            return res.status(400).json({ error: 'ID inválido.' });
-        }
+        if (isNaN(id)) return res.status(400).json({ error: 'ID inválido.' });
 
         const exists = await model.findById(id);
         if (!exists) {
-            return res.status(404).json({ error: 'ID não encontrado!' });
+            return res.status(404).json({ error: 'Registro não encontrado para atualizar.' });
         }
 
-        const { name, description, category, price, available } = req.body;
-
-        if (!name) {
-            return res.status(400).json({ error: 'O campo name é obrigatório!' });
-        }
-        if (!category) {
-            return res.status(400).json({ error: 'O campo category é obrigatório!' });
-        }
-        if (!description) {
-            return res.status(400).json({ error: 'O campo description é obrigatório!' });
-        }
-        if (price === undefined) {
-            return res.status(400).json({ error: 'O campo price é obrigatório!' });
-        }
-        if (price < 0) {
-            return res.status(400).json({ error: 'O campo price deve ser positivo!' });
-        }
-
-        const data = await model.update(id, {
-            name,
-            description,
-            category,
-            price: parseFloat(price),
-            available: available === 'true' || available === true,
-        });
-
+        const data = await model.update(id, req.body);
         res.json({
             message: `O registro "${data.name}" foi atualizado com sucesso!`,
             data,
@@ -157,7 +118,7 @@ export const remove = async (req, res) => {
 
         const exists = await model.findById(id);
         if (!exists) {
-            return res.status(404).json({ error: 'ID não encontrado para deletar.' });
+            return res.status(404).json({ error: 'Registro não encontrado para deletar.' });
         }
 
         await model.remove(id);
